@@ -8,17 +8,21 @@ services:
       - no-new-privileges:true
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     user: 1026:100
     environment:
       - TZ=Europe/Berlin
-    volumes:
-      - /volume1/docker/immich/redis:/data:rw
+    networks:
+      - immich-internal
     restart: on-failure:5
 
   immich-db:
     image: ghcr.io/immich-app/postgres:16-vectorchord0.4.3-pgvectors0.2.0
     container_name: Immich-DB
     hostname: immich-db
+    user: 999:999
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -31,14 +35,16 @@ services:
       - /volume1/docker/immich/db:/var/lib/postgresql/data:rw
     environment:
       - TZ=Europe/Berlin
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${immichuser}
-      - POSTGRES_PASSWORD=${immichpw}
-      - DB_STORAGE_TYPE=HDD #Remove the red # in front of the – DB_STORAGE_TYPE=HDD if your database isn’t stored on SSDs.
+      - POSTGRES_DB=immich
+      - POSTGRES_USER=immichuser
+      - POSTGRES_PASSWORD=immichpw
+      - DB_STORAGE_TYPE=HDD
+    networks:
+      - immich-internal
     restart: on-failure:5
 
   immich-server:
-    image: ghcr.io/immich-app/immich-server:release
+    image: ghcr.io/immich-app/immich-server:v2.7.5
     container_name: Immich-SERVER
     hostname: immich-server
     user: 1026:100
@@ -51,15 +57,18 @@ services:
     volumes:
       - /volume1/docker/immich/upload:/data:rw
       - /volume1/data/googlealbums:/home/user/googlealbums:rw
+    networks:
+      - immich-internal
+      - immich-external
     restart: on-failure:5
     depends_on:
       immich-redis:
         condition: service_healthy
       immich-db:
-        condition: service_started
+        condition: service_healthy
 
   immich-machine-learning:
-    image: ghcr.io/immich-app/immich-machine-learning:release
+    image: ghcr.io/immich-app/immich-machine-learning:v2.7.5
     container_name: Immich-LEARNING
     hostname: immich-machine-learning
     user: 1026:100
@@ -68,14 +77,23 @@ services:
     env_file:
       - stack.env
     volumes:
-      - /volume1/docker/immich/upload:/data:rw
       - /volume1/docker/immich/cache:/cache:rw
       - /volume1/docker/immich/cache:/.cache:rw
       - /volume1/docker/immich/cache:/.config:rw
       - /volume1/docker/immich/matplotlib:/matplotlib:rw
     environment:
       - MPLCONFIGDIR=/matplotlib
+    networks:
+      - immich-internal
     restart: on-failure:5
     depends_on:
       immich-db:
-        condition: service_started
+        condition: service_healthy
+
+networks:
+  immich-internal:
+    driver: bridge
+    internal: true
+  immich-external:
+    driver: bridge
+    internal: false

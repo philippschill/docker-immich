@@ -31,9 +31,9 @@ services:
       - /volume1/docker/immich/db:/var/lib/postgresql/data:rw
     environment:
       - TZ=Europe/Berlin
-      - POSTGRES_DB=immich
-      - POSTGRES_USER=immichuser
-      - POSTGRES_PASSWORD=immichpw
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${immichuser}
+      - POSTGRES_PASSWORD=${immichpw}
       - DB_STORAGE_TYPE=HDD #Remove the red # in front of the – DB_STORAGE_TYPE=HDD if your database isn’t stored on SSDs.
     restart: on-failure:5
 
